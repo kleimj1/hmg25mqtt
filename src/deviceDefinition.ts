@@ -186,12 +186,18 @@ export function registerDeviceDefinition(
 export function getDeviceDefinition(
   deviceType: string,
 ): DeviceDefinition<BaseDeviceData> | undefined {
+  console.log('[DeviceDefinition] Ursprünglicher deviceType:', deviceType);
+
   const regex = /(.*)-\d+/;
   const match = regex.exec(deviceType);
   if (match == null) {
+    console.warn('[DeviceDefinition] deviceType konnte nicht geparst werden:', deviceType);
     return;
   }
+
   const baseType = match[1];
+  console.log('[DeviceDefinition] Abgeleiteter baseType:', baseType);
+
   return deviceDefinitionRegistry.get(baseType);
 }
 
