@@ -39,13 +39,18 @@ export class DeviceManager {
     ) => void,
   ) {
     this.config.devices.forEach(device => {
+      console.log('[DeviceManager] Starte Initialisierung für Gerät:', device.deviceType, 'mit ID:', device.deviceId);
+
       const deviceDefinition = getDeviceDefinition(device.deviceType);
       if (!deviceDefinition) {
-        console.warn(`Skipping unknown device type: ${device.deviceType}`);
+        console.warn(`[DeviceManager] Unbekannter Gerätetyp: ${device.deviceType}, wird übersprungen.`);
         return;
       }
+
+      console.log('[DeviceManager] Gefundene Device Definition für Typ:', device.deviceType);
+
       const deviceKey = this.getDeviceKey(device);
-      console.log(`Initializing topics for device: ${deviceKey}`);
+      console.log(`[DeviceManager] Initialisiere Topics für Gerät: ${deviceKey}`);
 
       this.deviceTopics[deviceKey] = {
         deviceTopic: `hame_energy/${device.deviceType}/device/${device.deviceId}/ctrl`,
@@ -55,10 +60,9 @@ export class DeviceManager {
         availabilityTopic: `hame_energy/${device.deviceType}/availability/${device.deviceId}`,
       };
 
-      // Initialize response timeout tracker
       this.deviceResponseTimeouts[deviceKey] = null;
 
-      console.log(`Topics for ${deviceKey}:`, this.deviceTopics[deviceKey]);
+      console.log(`[DeviceManager] Angelegte Topics für ${deviceKey}:`, this.deviceTopics[deviceKey]);
     });
   }
 
