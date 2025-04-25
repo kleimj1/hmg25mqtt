@@ -119,8 +119,16 @@ const requiredRuntimeInfoKeys = [
   'grd_y',
   'wor_m',
 ];
-function isVenusRuntimeInfoMessage(values: Record<string, string>): boolean {
-  return requiredRuntimeInfoKeys.every(key => key in values);
+export function isVenusRuntimeInfoMessage(values: Record<string, string>): boolean {
+  console.log('[Venus] Eingehende Telemetrie:', values);
+
+  const missingKeys = requiredRuntimeInfoKeys.filter(key => !(key in values));
+  if (missingKeys.length > 0) {
+    console.warn('[Venus] Fehlende Pflichtfelder:', missingKeys);
+    return false;
+  }
+
+  return true;
 }
 
 registerDeviceDefinition(
