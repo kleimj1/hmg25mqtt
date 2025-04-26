@@ -21,50 +21,10 @@ jobs:
       contents: read
       packages: write
     steps:
-      - name: Download digests
-        uses: actions/download-artifact@v4
-        with:
-          pattern: ${{ inputs.digest-prefix }}*
-          path: /tmp/digests
-          merge-multiple: true
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - id: lower-repo
+      - name: Inspect latest manifest
         run: |
-          echo "IMAGE_NAME=${GITHUB_REPOSITORY@L}${{ inputs.image-suffix }}" >> $GITHUB_OUTPUT
-
-      - name: Log in to Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ inputs.registry }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create and push manifest
-        working-directory: /tmp/digests
-        run: |
-          echo "Building docker manifest for ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}"
-          digests=""
-          for digestfile in $(find . -type f); do
-            digestvalue=$(cat "$digestfile" | tr -d '\n')
-            if [ -n "$digestvalue" ]; then
-              digests="$digests ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}@sha256:$digestvalue"
-            fi
-          done
-
-          if [ -z "$digests" ]; then
-            echo "ERROR: No valid digests found. Aborting."
-            exit 1
-          fi
-
-          docker manifest create ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:latest $digests
-          docker manifest create ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:${GITHUB_REF_NAME#refs/tags/} $digests
-
-          docker manifest push ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:latest
-          docker manifest push ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:${GITHUB_REF_NAME#refs/tags/}
-
-      - name: Inspect manifest
-        run: |
-          docker manifest inspect ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:latest
+          IMAGE_NAME=${GITHUB_REPOSITORY@L}${{ inputs.image-suffix }}
+          docker buildx imagetools inspect ${{ inputs.registry }}/$IMAGE_NAME:latest || echo "manifest missing"
