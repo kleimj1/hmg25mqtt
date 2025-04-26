@@ -60,8 +60,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ${{ inputs.context }}
-          platforms: ${{ inputs.platform }}
           file: ${{ inputs.dockerfile }}
+          platforms: ${{ inputs.platform }}
           push: true
           build-args: |
             ${{ inputs.build-args }}
@@ -69,6 +69,8 @@ jobs:
             ${{ inputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          outputs: |
+            type=image,name=${{ inputs.tags }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Save Digest
         run: |
