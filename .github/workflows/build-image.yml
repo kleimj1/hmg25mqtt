@@ -57,14 +57,16 @@ jobs:
 
       - name: Build and Push Image
         id: docker_build
-        run: |
-          docker buildx build \
-            --platform ${{ inputs.platform }} \
-            --push \
-            --build-arg ${{ inputs.build-args }} \
-            --file ${{ inputs.dockerfile }} \
-            --tag ${{ inputs.tags }} \
-            ${{ inputs.context }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          platforms: ${{ inputs.platform }}
+          push: true
+          tags: ${{ inputs.tags }}
+          build-args: |
+            ${{ inputs.build-args }}
+          provenance: false
 
       - name: Fetch Digest
         id: fetch_digest
