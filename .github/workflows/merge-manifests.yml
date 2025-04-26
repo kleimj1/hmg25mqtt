@@ -48,9 +48,11 @@ jobs:
           echo "Building multiarch manifest for ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}"
           digests=""
           for digestfile in $(find . -type f); do
-            digestcontent=$(cat "$digestfile" | tr -d '\n')
-            if [ -n "$digestcontent" ]; then
-              digests="$digests ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}@sha256:$digestcontent"
+            platformname=$(basename "$digestfile")
+            digestvalue=$(cat "$digestfile" | tr -d '\n')
+            if [ -n "$digestvalue" ]; then
+              echo "Adding $platformname = sha256:$digestvalue"
+              digests="$digests ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}@sha256:$digestvalue"
             fi
           done
 
@@ -58,9 +60,6 @@ jobs:
             echo "ERROR: No valid digests found. Aborting."
             exit 1
           fi
-
-          echo "Digests to merge:"
-          echo "$digests"
 
           docker buildx imagetools create \
             -t ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:latest \
