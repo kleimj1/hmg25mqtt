@@ -38,7 +38,7 @@ export class DeviceManager {
       deviceState: DeviceStateData,
     ) => void,
   ) {
-    this.config.devices.forEach((device) => {
+    this.config.devices.forEach(device => {
       console.log(
         '[DeviceManager] Starte Initialisierung für Gerät:',
         device.deviceType,
@@ -69,7 +69,10 @@ export class DeviceManager {
 
       this.deviceResponseTimeouts[deviceKey] = null;
 
-      console.log(`[DeviceManager] Angelegte Topics für ${deviceKey}:`, this.deviceTopics[deviceKey]);
+      console.log(
+        `[DeviceManager] Angelegte Topics für ${deviceKey}:`,
+        this.deviceTopics[deviceKey],
+      );
     });
   }
 
@@ -108,7 +111,7 @@ export class DeviceManager {
   ): DeviceStateData & T {
     const deviceDefinition = getDeviceDefinition(device.deviceType);
     const defaultState = deviceDefinition?.messages.find(
-      (msg) => msg.publishPath === publishPath,
+      msg => msg.publishPath === publishPath,
     )?.defaultState;
     return (defaultState ?? {}) as DeviceStateData & T;
   }
@@ -137,7 +140,7 @@ export class DeviceManager {
     const deviceDefinitions = getDeviceDefinition(device.deviceType);
 
     return (
-      deviceDefinitions?.messages?.flatMap((msg) =>
+      deviceDefinitions?.messages?.flatMap(msg =>
         msg.commands.map(({ command }) => `${controlTopicBase}/${command}`),
       ) ?? []
     );
@@ -167,7 +170,7 @@ export class DeviceManager {
   }
 
   getDeviceByKey(deviceKey: DeviceKey): Device | undefined {
-    return this.config.devices.find((device) => this.getDeviceKey(device) === deviceKey);
+    return this.config.devices.find(device => this.getDeviceKey(device) === deviceKey);
   }
 
   findDeviceForTopic(topic: string):
@@ -191,13 +194,13 @@ export class DeviceManager {
   }
 
   getPollingInterval(): number {
-    const allPollingIntervals = this.getDevices().flatMap((device) => {
+    const allPollingIntervals = this.getDevices().flatMap(device => {
       return (
         getDeviceDefinition(device.deviceType)
-          ?.messages.map((message) => {
+          ?.messages.map(message => {
             return message.pollInterval;
           })
-          ?.filter((n) => n != null) ?? []
+          ?.filter(n => n != null) ?? []
       );
     });
 
