@@ -9,17 +9,21 @@ on:
       image-suffix:
         required: true
         type: string
+      digest-prefix:
+        required: true
+        type: string
 
 jobs:
   merge:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
     steps:
-      - name: Set up Docker CLI
-        run: docker --version
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to Container registry
         uses: docker/login-action@v3
@@ -28,27 +32,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - id: lower-repo
+      - name: Create and push manifest
         run: |
-          echo "IMAGE_NAME=${GITHUB_REPOSITORY@L}${{ inputs.image-suffix }}" >> $GITHUB_OUTPUT
+          echo "Building docker manifest for ${{ inputs.registry }}/${{ github.repository }}${{ inputs.image-suffix }}"
+          digests=""
+          for platform in linux/amd64 linux/arm64 linux/arm/v7; do
+            digest=$(cat /tmp/digests/${{ inputs.digest-prefix }}${platform}/${platform})
+            digests="$digests ${{ inputs.registry }}/${{ github.repository }}${{ inputs.image-suffix }}@$digest"
+          done
 
-      - name: Create and push multiarch manifest
+          docker buildx imagetools create \
+            -t ${{ inputs.registry }}/${{ github.repository }}${{ inputs.image-suffix }}:latest \
+            -t ${{ inputs.registry }}/${{ github.repository }}${{ inputs.image-suffix }}:${{ github.ref_name }} \
+            $digests
+
+      - name: Inspect manifest
         run: |
-          IMAGE=${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}
-          REF=${GITHUB_REF_NAME}
-
-          echo "Building manifest for: $IMAGE:$REF"
-
-          docker manifest create $IMAGE:$REF \
-            $IMAGE:$REF-linux-amd64 \
-            $IMAGE:$REF-linux-arm64 \
-            $IMAGE:$REF-linux-arm-v7
-
-          docker manifest push $IMAGE:$REF
-
-          docker manifest create $IMAGE:latest \
-            $IMAGE:$REF-linux-amd64 \
-            $IMAGE:$REF-linux-arm64 \
-            $IMAGE:$REF-linux-arm-v7
-
-          docker manifest push $IMAGE:latest
+          docker buildx imagetools inspect ${{ inputs.registry }}/${{ github.repository }}${{ inputs.image-suffix }}:latest
