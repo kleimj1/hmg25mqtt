@@ -1,6 +1,5 @@
 name: CI Pipeline
 
-
 on:
   push:
     branches: [ main ]
@@ -16,109 +15,136 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
         node-version: [16.x, 18.x, 20.x]
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run linting
+      - name: Lint
         run: npm run lint
 
-      - name: Run tests
-        run: npm test -- --ci --reporters=default --reporters=jest-junit --forceExit --detectOpenHandles
+      - name: Test
+        run: npm test -- --ci --reporters=default --reporters=jest-junit
         env:
           JEST_JUNIT_OUTPUT_DIR: ./test-results
 
-      - name: Build TypeScript
+      - name: Build
         run: npm run build
 
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-node-${{ matrix.node-version }}
-          path: ./test-results/junit.xml
-          if-no-files-found: warn
-
-  prettier:
+  build:
+    needs: validate
+    strategy:
+      matrix:
+        platform: [linux/amd64, linux/arm64, linux/arm/v7]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Check Prettier formatting
+      - name: Set platform safe name
+        id: platform
         run: |
-          npx prettier --check "src/**/*.ts" || (
-            echo "::warning file=Prettier::Code style issues found. Please run 'npm run format'."
-            exit 0
-          )
+          SAFE_PLATFORM=$(echo "${{ matrix.platform }}" | sed 's|/|-|g')
+          echo "safe_platform=$SAFE_PLATFORM" >> $GITHUB_ENV
 
-  build:
-    needs: [validate, prettier]
-    strategy:
-      matrix:
-        platform: [linux/amd64, linux/arm64, linux/arm/v7]
-    uses: ./.github/workflows/build-image.yml
-    with:
-      registry: ghcr.io
-      context: .
-      dockerfile: ./Dockerfile
-      platform: ${{ matrix.platform }}
-      image-suffix: ""
-      build-args: |
-        NODE_ENV=production
-      tags: |
-        ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-${{ matrix.platform }}
-      digest-prefix: "digests-base-"
+      - name: Login to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-  merge:
-    needs: [build]
-    uses: ./.github/workflows/merge-manifests.yml
-    with:
-      registry: ghcr.io
-      image-suffix: ""
-      digest-prefix: "digests-base-"
+      - name: Build and Push Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: ${{ matrix.platform }}
+          tags: |
+            ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-${{ env.safe_platform }}
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-base-${{ env.safe_platform }}
+          path: /tmp/digests
 
   build-addon:
-    needs: [validate, prettier]
+    needs: validate
     strategy:
       matrix:
         platform: [linux/amd64, linux/arm64, linux/arm/v7]
-    uses: ./.github/workflows/build-image.yml
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set platform safe name
+        id: platform
+        run: |
+          SAFE_PLATFORM=$(echo "${{ matrix.platform }}" | sed 's|/|-|g')
+          echo "safe_platform=$SAFE_PLATFORM" >> $GITHUB_ENV
+
+      - name: Login to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Addon Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ha_addon/Dockerfile
+          push: true
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
+          tags: |
+            ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}-${{ env.safe_platform }}
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-addon-${{ env.safe_platform }}
+          path: /tmp/digests
+
+  merge:
+    needs: build
+    uses: ./.github/workflows/merge-manifests.yml
     with:
       registry: ghcr.io
-      context: .
-      dockerfile: ha_addon/Dockerfile
-      platform: ${{ matrix.platform }}
-      image-suffix: "-addon"
-      build-args: |
-        BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
-      tags: |
-        ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}-${{ matrix.platform }}
-      digest-prefix: "digests-addon-"
+      image-suffix: ""
+      digest-prefix: "digest-base-"
 
   merge-addon:
-    needs: [build-addon]
+    needs: build-addon
     uses: ./.github/workflows/merge-manifests.yml
     with:
       registry: ghcr.io
       image-suffix: "-addon"
-      digest-prefix: "digests-addon-"
+      digest-prefix: "digest-addon-"
