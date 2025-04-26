@@ -5,6 +5,7 @@ import { getDeviceDefinition } from './deviceDefinition';
  * Interface for device state data
  */
 export type DeviceStateData = object;
+
 /**
  * Device topic structure
  */
@@ -25,7 +26,6 @@ type DeviceKey = `${string}:${string}`;
  * Device Manager class to handle device state and topics
  */
 export class DeviceManager {
-  // Device state and topic maps
   private deviceTopics: Record<DeviceKey, DeviceTopics> = {};
   private deviceStates: Record<DeviceKey, Record<string, DeviceStateData> | undefined> = {};
   private deviceResponseTimeouts: Record<DeviceKey, NodeJS.Timeout | null> = {};
@@ -38,12 +38,19 @@ export class DeviceManager {
       deviceState: DeviceStateData,
     ) => void,
   ) {
-    this.config.devices.forEach(device => {
-      console.log('[DeviceManager] Starte Initialisierung für Gerät:', device.deviceType, 'mit ID:', device.deviceId);
+    this.config.devices.forEach((device) => {
+      console.log(
+        '[DeviceManager] Starte Initialisierung für Gerät:',
+        device.deviceType,
+        'mit ID:',
+        device.deviceId,
+      );
 
       const deviceDefinition = getDeviceDefinition(device.deviceType);
       if (!deviceDefinition) {
-        console.warn(`[DeviceManager] Unbekannter Gerätetyp: ${device.deviceType}, wird übersprungen.`);
+        console.warn(
+          `[DeviceManager] Unbekannter Gerätetyp: ${device.deviceType}, wird übersprungen.`,
+        );
         return;
       }
 
@@ -70,23 +77,11 @@ export class DeviceManager {
     return `${device.deviceType}:${device.deviceId}`;
   }
 
-  /**
-   * Get device topics for a device
-   *
-   * @param device - The device configuration
-   * @returns The device topics
-   */
   getDeviceTopics(device: Device): DeviceTopics | undefined {
     const deviceKey = this.getDeviceKey(device);
     return this.deviceTopics[deviceKey];
   }
 
-  /**
-   * Get device state for a device
-   *
-   * @param device - The device configuration
-   * @returns The device state
-   */
   getDeviceState(device: Device): DeviceStateData | undefined {
     const deviceKey = this.getDeviceKey(device);
     const stateByPath = this.deviceStates[deviceKey];
@@ -112,27 +107,19 @@ export class DeviceManager {
     publishPath: string,
   ): DeviceStateData & T {
     const deviceDefinition = getDeviceDefinition(device.deviceType);
-    const deviceKey = this.getDeviceKey(device);
     const defaultState = deviceDefinition?.messages.find(
-      msg => msg.publishPath === publishPath,
+      (msg) => msg.publishPath === publishPath,
     )?.defaultState;
     return (defaultState ?? {}) as DeviceStateData & T;
   }
 
-  /**
-   * Update device state
-   *
-   * @param device - The device configuration
-   * @param path - The path to update
-   * @param updater - Function to update the device state
-   */
   updateDeviceState<T extends DeviceStateData | undefined>(
     device: Device,
     path: string,
     updater: (state: DeviceStateData) => T,
   ): DeviceStateData & T {
     const deviceKey = this.getDeviceKey(device);
-    let newDeviceState: T = {
+    const newDeviceState: T = {
       ...this.getDeviceStateForPath(device, path),
       ...updater(this.getDeviceStateForPath(device, path)),
     };
@@ -144,19 +131,13 @@ export class DeviceManager {
     return newDeviceState as DeviceStateData & T;
   }
 
-  /**
-   * Get all control topics for a device
-   *
-   * @param device - The device configuration
-   * @returns Array of control topics
-   */
   getControlTopics(device: Device): string[] {
     const deviceKey = this.getDeviceKey(device);
     const controlTopicBase = this.deviceTopics[deviceKey].controlSubscriptionTopic;
     const deviceDefinitions = getDeviceDefinition(device.deviceType);
 
     return (
-      deviceDefinitions?.messages?.flatMap(msg =>
+      deviceDefinitions?.messages?.flatMap((msg) =>
         msg.commands.map(({ command }) => `${controlTopicBase}/${command}`),
       ) ?? []
     );
@@ -167,24 +148,12 @@ export class DeviceManager {
     return this.deviceResponseTimeouts[deviceKey] !== null;
   }
 
-  /**
-   * Set a response timeout for a device
-   *
-   * @param timeout - The timeout handler
-   * @param device - The device configuration
-   */
   setResponseTimeout(device: Device, timeout: NodeJS.Timeout): void {
     const deviceKey = this.getDeviceKey(device);
-    // Clear any existing timeout
     this.clearResponseTimeout(device);
     this.deviceResponseTimeouts[deviceKey] = timeout;
   }
 
-  /**
-   * Clear a response timeout for a device
-   *
-   * @param device - The device configuration
-   */
   clearResponseTimeout(device: Device): void {
     const deviceKey = this.getDeviceKey(device);
     if (this.deviceResponseTimeouts[deviceKey]) {
@@ -193,31 +162,14 @@ export class DeviceManager {
     }
   }
 
-  /**
-   * Get all devices
-   *
-   * @returns Array of device configurations
-   */
   getDevices(): Device[] {
     return this.config.devices;
   }
 
-  /**
-   * Get device by key
-   *
-   * @param deviceKey - The device key
-   * @returns The device configuration or undefined
-   */
   getDeviceByKey(deviceKey: DeviceKey): Device | undefined {
-    return this.config.devices.find(device => this.getDeviceKey(device) === deviceKey);
+    return this.config.devices.find((device) => this.getDeviceKey(device) === deviceKey);
   }
 
-  /**
-   * Find device for a topic
-   *
-   * @param topic - The MQTT topic
-   * @returns Object with device, deviceKey, and topicType if found
-   */
   findDeviceForTopic(topic: string):
     | {
         device: Device;
@@ -238,21 +190,17 @@ export class DeviceManager {
     return undefined;
   }
 
-  /**
-   * Get polling interval from config
-   *
-   * @returns The polling interval in milliseconds
-   */
   getPollingInterval(): number {
-    const allPollingIntervals = this.getDevices().flatMap(device => {
+    const allPollingIntervals = this.getDevices().flatMap((device) => {
       return (
         getDeviceDefinition(device.deviceType)
-          ?.messages.map(message => {
+          ?.messages.map((message) => {
             return message.pollInterval;
           })
-          ?.filter(n => n != null) ?? []
+          ?.filter((n) => n != null) ?? []
       );
     });
+
     function gcd2(a: number, b: number): number {
       if (b === 0) {
         return a;
@@ -263,12 +211,7 @@ export class DeviceManager {
     return allPollingIntervals.reduce(gcd2, allPollingIntervals[0]);
   }
 
-  /**
-   * Get response timeout from config
-   *
-   * @returns The response timeout in milliseconds
-   */
   getResponseTimeout(): number {
-    return this.config.responseTimeout || 15000; // Default to 15 seconds if not specified
+    return this.config.responseTimeout || 15000;
   }
 }
