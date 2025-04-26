@@ -93,7 +93,8 @@ jobs:
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
-          echo "${digest#sha256:}" > "/tmp/digests/${{ inputs.platform }}"
+          safe_platform=$(echo "${{ inputs.platform }}" | sed 's|/|-|g')
+          echo "${digest#sha256:}" > "/tmp/digests/$safe_platform"
 
       - name: Set platform name
         id: platform
