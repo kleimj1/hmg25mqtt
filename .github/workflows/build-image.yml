@@ -56,6 +56,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Push Image
+        id: docker_build
         run: |
           docker buildx build \
             --platform ${{ inputs.platform }} \
@@ -66,7 +67,7 @@ jobs:
             ${{ inputs.context }}
 
       - name: Fetch Digest
-        id: digest
+        id: fetch_digest
         run: |
           DIGEST=$(docker buildx imagetools inspect ${{ inputs.tags }} | grep Digest | head -n1 | awk '{print $2}')
           echo "digest=$DIGEST" >> $GITHUB_ENV
