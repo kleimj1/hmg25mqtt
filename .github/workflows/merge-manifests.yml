@@ -35,18 +35,20 @@ jobs:
       - name: Create and push multiarch manifest
         run: |
           IMAGE=${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}
-          TAG=${GITHUB_REF_NAME#refs/tags/}
+          REF=${GITHUB_REF_NAME}
 
-          docker manifest create $IMAGE:$TAG \
-            $IMAGE:$TAG-linux-amd64 \
-            $IMAGE:$TAG-linux-arm64 \
-            $IMAGE:$TAG-linux-armv7
+          echo "Building manifest for: $IMAGE:$REF"
 
-          docker manifest push $IMAGE:$TAG
+          docker manifest create $IMAGE:$REF \
+            $IMAGE:$REF-linux-amd64 \
+            $IMAGE:$REF-linux-arm64 \
+            $IMAGE:$REF-linux-arm-v7
+
+          docker manifest push $IMAGE:$REF
 
           docker manifest create $IMAGE:latest \
-            $IMAGE:$TAG-linux-amd64 \
-            $IMAGE:$TAG-linux-arm64 \
-            $IMAGE:$TAG-linux-armv7
+            $IMAGE:$REF-linux-amd64 \
+            $IMAGE:$REF-linux-arm64 \
+            $IMAGE:$REF-linux-arm-v7
 
           docker manifest push $IMAGE:latest
