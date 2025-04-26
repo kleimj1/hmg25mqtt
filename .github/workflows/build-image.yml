@@ -78,6 +78,7 @@ jobs:
           platforms: ${{ inputs.platform }}
           file: ${{ inputs.dockerfile }}
           push: true
+          provenance: false
           tags: |
             ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:${{ github.ref_name }}
             ${{ inputs.tags }}
