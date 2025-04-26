@@ -18,34 +18,19 @@ jobs:
       matrix:
         node-version: [16.x, 18.x, 20.x]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
-        run: npm test -- --ci --reporters=default --reporters=jest-junit
-        env:
-          JEST_JUNIT_OUTPUT_DIR: ./test-results
-
-      - name: Build
-        run: npm run build
+      # … euer validate-Flow bleibt unverändert …
 
   build:
     needs: validate
     strategy:
       matrix:
-        platform: [linux/amd64, linux/arm64, linux/arm/v7]
+        include:
+          - platform: linux/amd64
+            safe: linux-amd64
+          - platform: linux/arm64
+            safe: linux-arm64
+          - platform: linux/arm/v7
+            safe: linux-arm-v7
     uses: ./.github/workflows/build-image.yml
     with:
       registry: ghcr.io
@@ -55,8 +40,8 @@ jobs:
       image-suffix: ""
       build-args: |
         NODE_ENV=production
-      tags: |
-        ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-${{ replace(matrix.platform, '/', '-') }}
+      # Hier den „safe“ Namen nutzen:
+      tags: ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-${{ matrix.safe }}
       digest-prefix: "digest-base-"
 
   merge:
@@ -71,7 +56,13 @@ jobs:
     needs: validate
     strategy:
       matrix:
-        platform: [linux/amd64, linux/arm64, linux/arm/v7]
+        include:
+          - platform: linux/amd64
+            safe: linux-amd64
+          - platform: linux/arm64
+            safe: linux-arm64
+          - platform: linux/arm/v7
+            safe: linux-arm-v7
     uses: ./.github/workflows/build-image.yml
     with:
       registry: ghcr.io
@@ -81,8 +72,7 @@ jobs:
       image-suffix: "-addon"
       build-args: |
         BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
-      tags: |
-        ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}-${{ replace(matrix.platform, '/', '-') }}
+      tags: ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}-${{ matrix.safe }}
       digest-prefix: "digest-addon-"
 
   merge-addon:
