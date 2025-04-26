@@ -73,23 +73,19 @@ jobs:
   build:
     needs: [validate, prettier]
     strategy:
-      fail-fast: false
       matrix:
-        config:
-          - platform: linux/amd64
-            base: node:20-alpine
-          - platform: linux/arm/v7
-            base: node:20-alpine
-          - platform: linux/arm64
-            base: node:20-alpine
+        platform: [linux/amd64, linux/arm64, linux/arm/v7]
     uses: ./.github/workflows/build-image.yml
     with:
       registry: ghcr.io
-      platform: ${{ matrix.config.platform }}
-      base: ${{ matrix.config.base }}
       context: .
       dockerfile: ./Dockerfile
+      platform: ${{ matrix.platform }}
       image-suffix: ""
+      build-args: |
+        NODE_ENV=production
+      tags: |
+        ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-${{ matrix.platform }}
       digest-prefix: "digests-base-"
 
   merge:
@@ -98,25 +94,24 @@ jobs:
     with:
       registry: ghcr.io
       image-suffix: ""
+      digest-prefix: "digests-base-"
 
   build-addon:
     needs: [validate, prettier]
     strategy:
-      fail-fast: false
       matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64
-          - linux/arm/v7
+        platform: [linux/amd64, linux/arm64, linux/arm/v7]
     uses: ./.github/workflows/build-image.yml
     with:
       registry: ghcr.io
-      platform: ${{ matrix.platform }}
       context: .
       dockerfile: ha_addon/Dockerfile
+      platform: ${{ matrix.platform }}
+      image-suffix: "-addon"
       build-args: |
         BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
-      image-suffix: "-addon"
+      tags: |
+        ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}-${{ matrix.platform }}
       digest-prefix: "digests-addon-"
 
   merge-addon:
@@ -125,3 +120,4 @@ jobs:
     with:
       registry: ghcr.io
       image-suffix: "-addon"
+      digest-prefix: "digests-addon-"
