@@ -47,10 +47,11 @@ jobs:
         run: |
           echo "Building multiarch manifest for ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}"
           digests=""
-          for digestfile in $(find . -type f -name 'sha256*'); do
-            digestname=$(basename "$digestfile")
-            digestname=${digestname//:/_}  # fallback falls ':' durch '_' ersetzt wurde
-            digests="$digests ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}@sha256:$digestname"
+          for digestfile in $(find . -type f); do
+            digestcontent=$(cat "$digestfile" | tr -d '\n')
+            if [ -n "$digestcontent" ]; then
+              digests="$digests ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}@sha256:$digestcontent"
+            fi
           done
 
           if [ -z "$digests" ]; then
@@ -58,7 +59,8 @@ jobs:
             exit 1
           fi
 
-          echo "Digests to merge: $digests"
+          echo "Digests to merge:"
+          echo "$digests"
 
           docker buildx imagetools create \
             -t ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:latest \
