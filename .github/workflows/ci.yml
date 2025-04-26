@@ -49,7 +49,29 @@ jobs:
           path: ./test-results/junit.xml
           if-no-files-found: warn
 
+  prettier:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check Prettier formatting
+        run: |
+          npx prettier --check "src/**/*.ts" || (
+            echo "::warning file=Prettier::Code style issues found. Please run 'npm run format'."
+            exit 0
+          )
+
   build:
+    needs: [validate, prettier]
     strategy:
       fail-fast: false
       matrix:
@@ -79,6 +101,7 @@ jobs:
       digest-prefix: "digests-base-"
 
   build-addon:
+    needs: [validate, prettier]
     strategy:
       fail-fast: false
       matrix:
@@ -97,7 +120,7 @@ jobs:
       image-suffix: "-addon"
       digest-prefix: "digests-addon-"
       tags: |
-        ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}      
+        ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}
 
   merge-addon:
     needs: [build-addon]
