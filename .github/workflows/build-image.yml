@@ -88,12 +88,12 @@ jobs:
             NODE_ENV=production
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          
+
       - name: Export digest
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
-          echo "${digest#sha256:}" > "/tmp/digests/${{ matrix.platform }}"
+          echo "${digest#sha256:}" > "/tmp/digests/${{ inputs.platform }}"
 
       - name: Set platform name
         id: platform
