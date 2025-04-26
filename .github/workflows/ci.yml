@@ -98,7 +98,6 @@ jobs:
     with:
       registry: ghcr.io
       image-suffix: ""
-      digest-prefix: "digests-base-"
 
   build-addon:
     needs: [validate, prettier]
@@ -128,4 +127,3 @@ jobs:
     with:
       registry: ghcr.io
       image-suffix: "-addon"
-      digest-prefix: "digests-addon-"
