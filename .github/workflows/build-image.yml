@@ -56,26 +56,25 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Push Image
-        id: docker_build
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ inputs.context }}
-          file: ${{ inputs.dockerfile }}
-          platforms: ${{ inputs.platform }}
-          push: true
-          build-args: |
-            ${{ inputs.build-args }}
-          tags: |
-            ${{ inputs.tags }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          outputs: |
-            type=image,name=${{ inputs.tags }},push-by-digest=true,name-canonical=true,push=true
+        run: |
+          docker buildx build \
+            --platform ${{ inputs.platform }} \
+            --push \
+            --build-arg ${{ inputs.build-args }} \
+            --file ${{ inputs.dockerfile }} \
+            --tag ${{ inputs.tags }} \
+            ${{ inputs.context }}
+
+      - name: Fetch Digest
+        id: digest
+        run: |
+          DIGEST=$(docker buildx imagetools inspect ${{ inputs.tags }} | grep Digest | head -n1 | awk '{print $2}')
+          echo "digest=$DIGEST" >> $GITHUB_ENV
 
       - name: Save Digest
         run: |
           mkdir -p /tmp/digests/${{ env.safe_platform }}
-          echo "${{ steps.docker_build.outputs.digest }}" > /tmp/digests/${{ env.safe_platform }}/digest.txt
+          echo "${{ env.digest }}" > /tmp/digests/${{ env.safe_platform }}/digest.txt
 
       - name: Upload Digest
         uses: actions/upload-artifact@v4
