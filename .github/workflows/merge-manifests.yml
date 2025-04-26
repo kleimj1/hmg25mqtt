@@ -61,7 +61,7 @@ jobs:
             exit 1
           fi
 
-          docker buildx imagetools create \
+          docker buildx imagetools create --push \
             -t ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:latest \
             -t ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:${GITHUB_REF_NAME#refs/tags/} \
             $digests
