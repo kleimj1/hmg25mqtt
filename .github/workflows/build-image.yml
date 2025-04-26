@@ -81,6 +81,7 @@ jobs:
           provenance: false
           tags: |
             ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:${{ github.ref_name }}
+            ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:latest
             ${{ inputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
