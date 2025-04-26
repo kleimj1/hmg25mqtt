@@ -1,5 +1,6 @@
 name: Merge Manifests
 
+
 on:
   workflow_call:
     inputs:
