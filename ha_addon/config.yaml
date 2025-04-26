@@ -1,5 +1,5 @@
 name: "hmg25mqtt"
-version: "1.2.4"
+version: "1.2.5"
 slug: "hmg25mqtt"
 description: "Connect Hame energy storage devices to Home Assistant via MQTT"
 url: "https://github.com/kleimj1/hmg25mqtt"
