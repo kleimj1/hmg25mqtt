@@ -45,13 +45,11 @@ jobs:
       - name: Create and push manifest
         working-directory: /tmp/digests
         run: |
-          echo "Building multiarch manifest for ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}"
+          echo "Building docker manifest for ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}"
           digests=""
           for digestfile in $(find . -type f); do
-            platformname=$(basename "$digestfile")
             digestvalue=$(cat "$digestfile" | tr -d '\n')
             if [ -n "$digestvalue" ]; then
-              echo "Adding $platformname = sha256:$digestvalue"
               digests="$digests ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}@sha256:$digestvalue"
             fi
           done
@@ -61,11 +59,12 @@ jobs:
             exit 1
           fi
 
-          docker buildx imagetools create --push \
-            -t ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:latest \
-            -t ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:${GITHUB_REF_NAME#refs/tags/} \
-            $digests
+          docker manifest create ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:latest $digests
+          docker manifest create ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:${GITHUB_REF_NAME#refs/tags/} $digests
+
+          docker manifest push ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:latest
+          docker manifest push ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:${GITHUB_REF_NAME#refs/tags/}
 
       - name: Inspect manifest
         run: |
-          docker buildx imagetools inspect ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:latest
+          docker manifest inspect ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:latest
