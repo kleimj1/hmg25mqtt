@@ -6,7 +6,6 @@ on:
       registry:
         required: true
         type: string
-        description: "Container registry to use"
       image-suffix:
         required: true
         type: string
@@ -21,10 +20,48 @@ jobs:
       contents: read
       packages: write
     steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ inputs.digest-prefix }}*
+          path: /tmp/digests
+          merge-multiple: true
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Inspect latest manifest
+      - name: Set up Docker CLI
+        run: docker --version
+
+      - id: lower-repo
         run: |
-          IMAGE_NAME=${GITHUB_REPOSITORY@L}${{ inputs.image-suffix }}
-          docker buildx imagetools inspect ${{ inputs.registry }}/$IMAGE_NAME:latest || echo "manifest missing"
+          echo "IMAGE_NAME=${GITHUB_REPOSITORY@L}${{ inputs.image-suffix }}" >> $GITHUB_OUTPUT
+
+      - name: Log in to Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push multiarch manifest
+        run: |
+          cd /tmp/digests
+          IMAGE=${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}
+          DIGESTS=""
+
+          for file in *; do
+            VALUE=$(cat "$file")
+            DIGESTS="$DIGESTS $IMAGE@sha256:$VALUE"
+          done
+
+          echo "Creating manifest for: $DIGESTS"
+          docker manifest create "$IMAGE:latest" $DIGESTS
+          docker manifest create "$IMAGE:${GITHUB_REF_NAME#refs/tags/}" $DIGESTS
+
+          docker manifest push "$IMAGE:latest"
+          docker manifest push "$IMAGE:${GITHUB_REF_NAME#refs/tags/}"
+
+      - name: Inspect manifest
+        run: |
+          docker manifest inspect ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:latest
