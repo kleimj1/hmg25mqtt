@@ -20,6 +20,26 @@ jobs:
       contents: read
       packages: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker CLI
+        run: docker --version
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - id: lower-repo
+        run: |
+          echo "IMAGE_NAME=${GITHUB_REPOSITORY@L}${{ inputs.image-suffix }}" >> $GITHUB_OUTPUT
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Download digests
         uses: actions/download-artifact@v4
         with:
@@ -27,39 +47,37 @@ jobs:
           path: /tmp/digests
           merge-multiple: true
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Set up Docker CLI
-        run: docker --version
-
-      - id: lower-repo
-        run: |
-          echo "IMAGE_NAME=${GITHUB_REPOSITORY@L}${{ inputs.image-suffix }}" >> $GITHUB_OUTPUT
-
-      - name: Log in to Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ inputs.registry }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Create and push multiarch manifest
         run: |
-          cd /tmp/digests
-          IMAGE=${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}
+          IMAGE_NAME=${{ steps.lower-repo.outputs.IMAGE_NAME }}
+          IMAGE=${{ inputs.registry }}/$IMAGE_NAME
           DIGESTS=""
 
-          for file in *; do
-            VALUE=$(cat "$file")
-            DIGESTS="$DIGESTS $IMAGE@sha256:$VALUE"
+          cd /tmp/digests
+          for f in *; do
+            DIGEST=$(cat "$f" | tr -d '\n')
+            echo "Adding digest: $DIGEST"
+            DIGESTS="$DIGESTS $IMAGE@sha256:$DIGEST"
           done
 
-          echo "Creating manifest for: $DIGESTS"
+          if [ -z "$DIGESTS" ]; then
+            echo "ERROR: No digests found!"
+            exit 1
+          fi
+
+          echo "Creating manifest for tags: latest and ${GITHUB_REF_NAME#refs/tags/}"
           docker manifest create "$IMAGE:latest" $DIGESTS
-          docker manifest create "$IMAGE:${GITHUB_REF_NAME#refs/tags/}" $DIGESTS
+          docker manifest annotate --arch arm --os linux "$IMAGE:latest" "$IMAGE@sha256:$(cat linux-arm-v7)"
+          docker manifest annotate --arch amd64 --os linux "$IMAGE:latest" "$IMAGE@sha256:$(cat linux-amd64)"
+          docker manifest annotate --arch arm64 --os linux "$IMAGE:latest" "$IMAGE@sha256:$(cat linux-arm64)"
 
           docker manifest push "$IMAGE:latest"
+
+          docker manifest create "$IMAGE:${GITHUB_REF_NAME#refs/tags/}" $DIGESTS
+          docker manifest annotate --arch arm --os linux "$IMAGE:${GITHUB_REF_NAME#refs/tags/}" "$IMAGE@sha256:$(cat linux-arm-v7)"
+          docker manifest annotate --arch amd64 --os linux "$IMAGE:${GITHUB_REF_NAME#refs/tags/}" "$IMAGE@sha256:$(cat linux-amd64)"
+          docker manifest annotate --arch arm64 --os linux "$IMAGE:${GITHUB_REF_NAME#refs/tags/}" "$IMAGE@sha256:$(cat linux-arm64)"
+
           docker manifest push "$IMAGE:${GITHUB_REF_NAME#refs/tags/}"
 
       - name: Inspect manifest
