@@ -42,20 +42,20 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Set platform safe name
+      - name: Compute safe platform
         id: platform
         run: |
-          SAFE_PLATFORM=$(echo "${{ inputs.platform }}" | sed 's|/|-|g')
+          SAFE_PLATFORM=${{ inputs.platform//\//- }}
           echo "safe_platform=$SAFE_PLATFORM" >> $GITHUB_ENV
 
-      - name: Login to Container Registry
+      - name: Log in to registry
         uses: docker/login-action@v3
         with:
           registry: ${{ inputs.registry }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Image
+      - name: Build & push
         id: docker_build
         uses: docker/build-push-action@v5
         with:
@@ -68,18 +68,19 @@ jobs:
             ${{ inputs.build-args }}
           provenance: false
 
-      - name: Fetch Digest
+      - name: Fetch digest
         id: fetch_digest
         run: |
-          DIGEST=$(docker buildx imagetools inspect ${{ inputs.tags }} | grep Digest | head -n1 | awk '{print $2}')
+          DIGEST=$(docker buildx imagetools inspect ${{ inputs.tags }} \
+            | grep "^Digest:" | head -n1 | awk '{print $2}')
           echo "digest=$DIGEST" >> $GITHUB_ENV
 
-      - name: Save Digest
+      - name: Save digest
         run: |
           mkdir -p /tmp/digests/${{ env.safe_platform }}
           echo "${{ env.digest }}" > /tmp/digests/${{ env.safe_platform }}/digest.txt
 
-      - name: Upload Digest
+      - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.digest-prefix }}${{ env.safe_platform }}
