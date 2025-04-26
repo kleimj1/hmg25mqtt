@@ -118,8 +118,6 @@ jobs:
         BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
       image-suffix: "-addon"
       digest-prefix: "digests-addon-"
-      tags: |
-        ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}
 
   merge-addon:
     needs: [build-addon]
