@@ -6,15 +6,12 @@ on:
       registry:
         required: true
         type: string
-        description: "Container registry to use"
       platform:
         required: true
         type: string
-        description: "Platform to build for (e.g. linux/amd64)"
       base:
         required: false
         type: string
-        description: "Base image to use (e.g. node:20-alpine)"
         default: ""
       context:
         required: true
@@ -32,10 +29,6 @@ on:
       digest-prefix:
         required: true
         type: string
-      tags:
-        required: false
-        type: string
-        description: "Additional tags for the image (comma-separated)"
 
 jobs:
   build:
@@ -43,6 +36,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -80,9 +74,7 @@ jobs:
           push: true
           provenance: false
           tags: |
-            ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:${{ github.ref_name }}
-            ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:latest
-            ${{ inputs.tags }}
+            ${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:${{ github.ref_name }}-${{ inputs.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             ${{ inputs.build-args }}
@@ -90,24 +82,3 @@ jobs:
             NODE_ENV=production
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Export digest
-        run: |
-          mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
-          safe_platform=$(echo "${{ inputs.platform }}" | sed 's|/|-|g')
-          echo "${digest#sha256:}" > "/tmp/digests/$safe_platform"
-
-      - name: Set platform name
-        id: platform
-        run: |
-          SAFE_PLATFORM=$(echo "${{ inputs.platform }}" | sed 's|/|-|g')
-          echo "name=$SAFE_PLATFORM" >> $GITHUB_OUTPUT
-
-      - name: Upload digest
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ inputs.digest-prefix }}${{ steps.platform.outputs.name }}
-          path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1
