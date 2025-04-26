@@ -76,11 +76,11 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - platform: linux/amd64
+          - platform: linux-amd64
             base: node:20-alpine
-          - platform: linux/arm/v7
+          - platform: linux-arm-v7
             base: node:20-alpine
-          - platform: linux/arm64
+          - platform: linux-arm64
             base: node:20-alpine
     uses: ./.github/workflows/build-image.yml
     with:
@@ -105,9 +105,9 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - linux/amd64
-          - linux/arm64
-          - linux/arm/v7
+          - linux-amd64
+          - linux-arm64
+          - linux-arm-v7
     uses: ./.github/workflows/build-image.yml
     with:
       registry: ghcr.io
