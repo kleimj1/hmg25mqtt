@@ -37,19 +37,22 @@ jobs:
 
       - name: Create and Push Manifest
         run: |
-          IMAGE=${{ inputs.registry }}/${{ github.repository }}${{ inputs.image-suffix }}
-          REF=${GITHUB_REF_NAME}
+          IMAGE=${{ inputs.registry }}/${GITHUB_REPOSITORY##*/}${{ inputs.image-suffix }}
+          TAG=${GITHUB_REF_NAME}
 
-          echo "Building manifest for: $IMAGE:$REF"
+          echo "Building manifest for: $IMAGE:$TAG"
 
-          digests=""
-          for platform in linux-amd64 linux-arm64 linux-arm-v7; do
-            digest=$(cat /tmp/digests/${{ inputs.digest-prefix }}${platform}/digest.txt)
-            digests="$digests $IMAGE@$digest"
+          DIGESTS=""
+          for PLATFORM in linux-amd64 linux-arm64 linux-arm-v7; do
+            H=$(cat /tmp/digests/${{ inputs.digest-prefix }}$PLATFORM/digest.txt)
+            DIGESTS="$DIGESTS $IMAGE@$H"
           done
 
-          docker buildx imagetools create -t $IMAGE:$REF -t $IMAGE:latest $digests
+          docker buildx imagetools create \
+            -t $IMAGE:$TAG \
+            -t $IMAGE:latest \
+            $DIGESTS
 
       - name: Inspect Manifest
         run: |
-          docker buildx imagetools inspect ${{ inputs.registry }}/${{ github.repository }}${{ inputs.image-suffix }}:latest
+          docker buildx imagetools inspect ${{ inputs.registry }}/${GITHUB_REPOSITORY##*/}}${{ inputs.image-suffix }}:latest
