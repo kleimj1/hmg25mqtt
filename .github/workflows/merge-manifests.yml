@@ -20,7 +20,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download digests
+      - name: Download Digests
         uses: actions/download-artifact@v4
         with:
           path: /tmp/digests
@@ -37,15 +37,16 @@ jobs:
 
       - name: Create and Push Manifest
         run: |
-          IMAGE="${{ inputs.registry }}/${GITHUB_REPOSITORY}${{ inputs.image-suffix }}"
+          # <-- use full repo name (owner/repo), not just repo##*/
+          IMAGE="${{ inputs.registry }}/${{ github.repository }}${{ inputs.image-suffix }}"
           REF="${GITHUB_REF_NAME}"
 
           echo "Building manifest for: $IMAGE:$REF"
 
           DIGESTS=""
           for PLATFORM in linux-amd64 linux-arm64 linux-arm-v7; do
-            H=$(cat /tmp/digests/${{ inputs.digest-prefix }}${PLATFORM}/digest.txt)
-            DIGESTS="$DIGESTS $IMAGE@$H"
+            D=$(cat /tmp/digests/${{ inputs.digest-prefix }}${PLATFORM}/digest.txt)
+            DIGESTS="$DIGESTS $IMAGE@$D"
           done
 
           docker buildx imagetools create \
@@ -55,4 +56,4 @@ jobs:
 
       - name: Inspect Manifest
         run: |
-          docker buildx imagetools inspect "${{ inputs.registry }}/${GITHUB_REPOSITORY}${{ inputs.image-suffix }}:latest"
+          docker buildx imagetools inspect "${{ inputs.registry }}/${{ github.repository }}${{ inputs.image-suffix }}:latest"
