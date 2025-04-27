@@ -51,11 +51,10 @@ jobs:
     with:
       registry: ghcr.io
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: Dockerfile
       platform: linux/amd64
       image-suffix: ""
-      build-args: |
-        NODE_ENV=production
+      build-args: NODE_ENV=production
       tags: ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-linux-amd64
       digest-prefix: digest-base-
 
@@ -65,11 +64,10 @@ jobs:
     with:
       registry: ghcr.io
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: Dockerfile
       platform: linux/arm64
       image-suffix: ""
-      build-args: |
-        NODE_ENV=production
+      build-args: NODE_ENV=production
       tags: ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-linux-arm64
       digest-prefix: digest-base-
 
@@ -79,11 +77,10 @@ jobs:
     with:
       registry: ghcr.io
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: Dockerfile
       platform: linux/arm/v7
       image-suffix: ""
-      build-args: |
-        NODE_ENV=production
+      build-args: NODE_ENV=production
       tags: ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-linux-arm-v7
       digest-prefix: digest-base-
 
@@ -107,8 +104,7 @@ jobs:
       dockerfile: ha_addon/Dockerfile
       platform: linux/amd64
       image-suffix: "-addon"
-      build-args: |
-        BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
+      build-args: BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
       tags: ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}-linux-amd64
       digest-prefix: digest-addon-
 
@@ -121,8 +117,7 @@ jobs:
       dockerfile: ha_addon/Dockerfile
       platform: linux/arm64
       image-suffix: "-addon"
-      build-args: |
-        BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
+      build-args: BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
       tags: ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}-linux-arm64
       digest-prefix: digest-addon-
 
@@ -135,8 +130,7 @@ jobs:
       dockerfile: ha_addon/Dockerfile
       platform: linux/arm/v7
       image-suffix: "-addon"
-      build-args: |
-        BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
+      build-args: BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
       tags: ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}-linux-arm-v7
       digest-prefix: digest-addon-
 
