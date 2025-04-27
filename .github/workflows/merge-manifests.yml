@@ -35,25 +35,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create and Push Manifest
+      - name: Create and Push Manifest List
         run: |
-          # <-- use full repo name (owner/repo), not just repo##*/
           IMAGE="${{ inputs.registry }}/${{ github.repository }}${{ inputs.image-suffix }}"
           REF="${GITHUB_REF_NAME}"
 
-          echo "Building manifest for: $IMAGE:$REF"
+          echo "🔨 Building manifest list for $IMAGE:$REF"
 
+          # alle drei Plattform-Digests zusammenführen
           DIGESTS=""
           for PLATFORM in linux-amd64 linux-arm64 linux-arm-v7; do
             D=$(cat /tmp/digests/${{ inputs.digest-prefix }}${PLATFORM}/digest.txt)
             DIGESTS="$DIGESTS $IMAGE@$D"
           done
 
+          # manifest list erzeugen und pushen
           docker buildx imagetools create \
             -t "$IMAGE:$REF" \
             -t "$IMAGE:latest" \
             $DIGESTS
 
-      - name: Inspect Manifest
+      - name: Inspect Manifest List
         run: |
-          docker buildx imagetools inspect "${{ inputs.registry }}/${{ github.repository }}${{ inputs.image-suffix }}:latest"
+          # nur die drei Plattform-Einträge anzeigen, ohne die kompletten Raw-Blobs
+          docker manifest inspect "${{ inputs.registry }}/${{ github.repository }}${{ inputs.image-suffix }}:latest"
