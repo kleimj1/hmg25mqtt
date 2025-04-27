@@ -8,14 +8,14 @@ on:
     branches: [ main ]
 
 permissions:
-  packages: write
   contents: read
+  packages: write
 
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Node.js
@@ -30,12 +30,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Run tests
+      - name: Test
         run: npm test -- --ci --reporters=default --reporters=jest-junit
         env:
           JEST_JUNIT_OUTPUT_DIR: ./test-results
 
-      - name: Build TypeScript
+      - name: Build
         run: npm run build
 
       - name: Upload test results
@@ -53,6 +53,7 @@ jobs:
       context: .
       dockerfile: Dockerfile
       platform: linux/amd64
+      safe-platform: linux-amd64
       image-suffix: ""
       build-args: NODE_ENV=production
       tags: ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-linux-amd64
@@ -66,6 +67,7 @@ jobs:
       context: .
       dockerfile: Dockerfile
       platform: linux/arm64
+      safe-platform: linux-arm64
       image-suffix: ""
       build-args: NODE_ENV=production
       tags: ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-linux-arm64
@@ -79,6 +81,7 @@ jobs:
       context: .
       dockerfile: Dockerfile
       platform: linux/arm/v7
+      safe-platform: linux-arm-v7
       image-suffix: ""
       build-args: NODE_ENV=production
       tags: ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-linux-arm-v7
@@ -103,6 +106,7 @@ jobs:
       context: .
       dockerfile: ha_addon/Dockerfile
       platform: linux/amd64
+      safe-platform: linux-amd64
       image-suffix: "-addon"
       build-args: BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
       tags: ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}-linux-amd64
@@ -116,6 +120,7 @@ jobs:
       context: .
       dockerfile: ha_addon/Dockerfile
       platform: linux/arm64
+      safe-platform: linux-arm64
       image-suffix: "-addon"
       build-args: BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
       tags: ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}-linux-arm64
@@ -129,6 +134,7 @@ jobs:
       context: .
       dockerfile: ha_addon/Dockerfile
       platform: linux/arm/v7
+      safe-platform: linux-arm-v7
       image-suffix: "-addon"
       build-args: BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
       tags: ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}-linux-arm-v7
