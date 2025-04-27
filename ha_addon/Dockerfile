@@ -1,25 +1,36 @@
-# syntax=docker/dockerfile:1
-ARG BUILD_FROM
-FROM ${BUILD_FROM}
-
+# ─────────────────────────────────────────────────────────────
+# Stage 1: Build your TypeScript/Node.js code
+# ─────────────────────────────────────────────────────────────
+FROM node:18-alpine AS builder
 WORKDIR /build
 
+# Install all dependencies (including dev for build)
 COPY package*.json ./
-COPY tsconfig.json ./
-COPY src/ ./src/
+RUN npm ci
 
-RUN apk add --no-cache nodejs \
-  && npm ci \
-  && npm run build \
-  && npm ci --only=production
+# Copy source & compile
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build
+
+# ─────────────────────────────────────────────────────────────
+# Stage 2: Runtime image based on Home-Assistant Add-on base
+# ─────────────────────────────────────────────────────────────
+ARG BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
+FROM ${BUILD_FROM} AS final
+
+LABEL io.hass.type="addon"
+LABEL io.hass.version="14.2.2"
+LABEL io.hass.arch="amd64,arm64,armv7"
 
 WORKDIR /app
 
-COPY package.json ./
-COPY --from=0 /build/node_modules ./node_modules
-COPY --from=0 /build/dist/ ./dist/
-COPY ha_addon/run.sh /
+# Copy production deps + compiled output
+COPY --from=builder /build/node_modules ./node_modules
+COPY --from=builder /build/dist      ./dist
 
-RUN chmod a+x /run.sh
+# Copy your entrypoint
+COPY run.sh /run.sh
+RUN chmod +x /run.sh
 
-CMD ["/run.sh"]
+CMD [ "/run.sh" ]
