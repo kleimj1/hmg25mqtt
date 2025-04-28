@@ -45,7 +45,7 @@ jobs:
           docker run --rm --privileged \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "${GITHUB_WORKSPACE}:/data" \
-            ghcr.io/home-assistant/builder/${{ matrix.architecture }}:latest \
+            ghcr.io/home-assistant/builder:latest \
               --${{ matrix.architecture }} \
               --target ./ha_addon \
               --docker-hub "ghcr.io/${{ github.repository_owner }}" \
