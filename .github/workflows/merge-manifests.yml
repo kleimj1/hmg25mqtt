@@ -35,21 +35,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Prepare digests
-        run: |
-          mkdir -p /tmp/digests/ready
-
-          for PLATFORM in linux-amd64 linux-arm64 linux-arm-v7; do
-            FILE=$(find /tmp/digests -name "${{ inputs.digest-prefix }}${PLATFORM}/digest.txt" -print -quit)
-            if [ -f "$FILE" ]; then
-              cp "$FILE" "/tmp/digests/ready/${PLATFORM}.txt"
-            else
-              echo "Missing digest for $PLATFORM!"
-              exit 1
-            fi
-          done
-
-      - name: Create and push manifest list
+      - name: Build and push manifest list
         run: |
           IMAGE="${{ inputs.registry }}/${{ github.repository }}${{ inputs.image-suffix }}"
           REF="${GITHUB_REF_NAME}"
@@ -59,9 +45,9 @@ jobs:
           docker buildx imagetools create \
             -t "$IMAGE:$REF" \
             -t "$IMAGE:latest" \
-            "$IMAGE@$(cat /tmp/digests/ready/linux-amd64.txt)" \
-            "$IMAGE@$(cat /tmp/digests/ready/linux-arm64.txt)" \
-            "$IMAGE@$(cat /tmp/digests/ready/linux-arm-v7.txt)"
+            "$IMAGE@$(cat /tmp/digests/${{ inputs.digest-prefix }}linux-amd64/digest.txt)" \
+            "$IMAGE@$(cat /tmp/digests/${{ inputs.digest-prefix }}linux-arm64/digest.txt)" \
+            "$IMAGE@$(cat /tmp/digests/${{ inputs.digest-prefix }}linux-arm-v7/digest.txt)"
 
       - name: Inspect manifest
         run: |
