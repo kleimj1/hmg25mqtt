@@ -1,152 +1,119 @@
-name: CI Pipeline
+name: Build Home Assistant Add-ons
 
 on:
   push:
-    branches: [ main ]
-    tags: [ "*.*.*" ]
+    branches:
+      - main
+    tags:
+      - "*.*.*"
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
-permissions:
-  contents: read
-  packages: write
+env:
+  BUILD_ARGS: ""
+  MONITORED_FILES: "build.yaml config.yaml Dockerfile rootfs"
 
 jobs:
-  validate:
+  init:
     runs-on: ubuntu-latest
+    name: Initialize builds
+    outputs:
+      changed_addons: ${{ steps.changed_addons.outputs.addons }}
+      changed: ${{ steps.changed_addons.outputs.changed }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4.2.0
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Get changed files
+        id: changed_files
+        uses: jitterbit/get-changed-files@v1
+
+      - name: Find add-on directories
+        id: addons
+        uses: home-assistant/actions/helpers/find-addons@master
+
+      - name: Get changed add-ons
+        id: changed_addons
+        run: |
+          declare -a changed_addons
+          for addon in ${{ steps.addons.outputs.addons }}; do
+            if [[ "${{ steps.changed_files.outputs.all }}" =~ $addon ]]; then
+              for file in ${{ env.MONITORED_FILES }}; do
+                if [[ "${{ steps.changed_files.outputs.all }}" =~ $addon/$file ]]; then
+                  if [[ ! "${changed_addons[@]}" =~ $addon ]]; then
+                    changed_addons+=("\"${addon}\",")
+                  fi
+                fi
+              done
+            fi
+          done
+
+          changed=$(echo ${changed_addons[@]} | rev | cut -c 2- | rev)
+
+          if [[ -n ${changed} ]]; then
+            echo "Changed add-ons: $changed"
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "addons=[$changed]" >> $GITHUB_OUTPUT
+          else
+            echo "No add-on had any monitored files changed (${{ env.MONITORED_FILES }})"
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "addons=[]" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    needs: init
+    if: needs.init.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    name: Build ${{ matrix.arch }} ${{ matrix.addon }} add-on
+    strategy:
+      matrix:
+        addon: ${{ fromJson(needs.init.outputs.changed_addons) }}
+        arch: ["amd64", "armv7", "armhf", "aarch64", "i386"]
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.2.0
+
+      - name: Get information
+        id: info
+        uses: home-assistant/actions/helpers/info@master
         with:
-          node-version: 18
-          cache: npm
+          path: "./${{ matrix.addon }}"
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Check if add-on should be built
+        id: check
+        run: |
+          if [[ "${{ steps.info.outputs.image }}" == "null" ]]; then
+            echo "Image property is not defined, skipping build"
+            echo "build_arch=false" >> $GITHUB_OUTPUT
+          elif [[ "${{ steps.info.outputs.architectures }}" =~ ${{ matrix.arch }} ]]; then
+            echo "build_arch=true" >> $GITHUB_OUTPUT
+            echo "image=$(echo ${{ steps.info.outputs.image }} | cut -d'/' -f3)" >> $GITHUB_OUTPUT
+          else
+            echo "${{ matrix.arch }} is not a valid arch for ${{ matrix.addon }}, skipping build"
+            echo "build_arch=false" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
-        run: npm test -- --ci --reporters=default --reporters=jest-junit
-        env:
-          JEST_JUNIT_OUTPUT_DIR: ./test-results
-
-      - name: Build
-        run: npm run build
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
+      - name: Login to GitHub Container Registry
+        if: env.BUILD_ARGS != '--test'
+        uses: docker/login-action@v3.4.0
         with:
-          name: test-results
-          path: ./test-results/junit.xml
-          if-no-files-found: warn
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-  build-base-amd64:
-    needs: validate
-    uses: ./.github/workflows/build-image.yml
-    with:
-      registry: ghcr.io
-      context: .
-      dockerfile: Dockerfile
-      platform: linux/amd64
-      safe-platform: linux-amd64
-      image-suffix: ""
-      build-args: NODE_ENV=production
-      tags: ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-linux-amd64
-      digest-prefix: digest-base-
-
-  build-base-arm64:
-    needs: validate
-    uses: ./.github/workflows/build-image.yml
-    with:
-      registry: ghcr.io
-      context: .
-      dockerfile: Dockerfile
-      platform: linux/arm64
-      safe-platform: linux-arm64
-      image-suffix: ""
-      build-args: NODE_ENV=production
-      tags: ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-linux-arm64
-      digest-prefix: digest-base-
-
-  build-base-armv7:
-    needs: validate
-    uses: ./.github/workflows/build-image.yml
-    with:
-      registry: ghcr.io
-      context: .
-      dockerfile: Dockerfile
-      platform: linux/arm/v7
-      safe-platform: linux-arm-v7
-      image-suffix: ""
-      build-args: NODE_ENV=production
-      tags: ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-linux-arm-v7
-      digest-prefix: digest-base-
-
-  merge-base:
-    needs:
-      - build-base-amd64
-      - build-base-arm64
-      - build-base-armv7
-    uses: ./.github/workflows/merge-manifests.yml
-    with:
-      registry: ghcr.io
-      image-suffix: ""
-      digest-prefix: digest-base-
-
-  build-addon-amd64:
-    needs: validate
-    uses: ./.github/workflows/build-image.yml
-    with:
-      registry: ghcr.io
-      context: .
-      dockerfile: ha_addon/Dockerfile
-      platform: linux/amd64
-      safe-platform: linux-amd64
-      image-suffix: "-addon"
-      build-args: BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
-      tags: ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}-linux-amd64
-      digest-prefix: digest-addon-
-
-  build-addon-arm64:
-    needs: validate
-    uses: ./.github/workflows/build-image.yml
-    with:
-      registry: ghcr.io
-      context: .
-      dockerfile: ha_addon/Dockerfile
-      platform: linux/arm64
-      safe-platform: linux-arm64
-      image-suffix: "-addon"
-      build-args: BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
-      tags: ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}-linux-arm64
-      digest-prefix: digest-addon-
-
-  build-addon-armv7:
-    needs: validate
-    uses: ./.github/workflows/build-image.yml
-    with:
-      registry: ghcr.io
-      context: .
-      dockerfile: ha_addon/Dockerfile
-      platform: linux/arm/v7
-      safe-platform: linux-arm-v7
-      image-suffix: "-addon"
-      build-args: BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
-      tags: ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}-linux-arm-v7
-      digest-prefix: digest-addon-
-
-  merge-addon:
-    needs:
-      - build-addon-amd64
-      - build-addon-arm64
-      - build-addon-armv7
-    uses: ./.github/workflows/merge-manifests.yml
-    with:
-      registry: ghcr.io
-      image-suffix: "-addon"
-      digest-prefix: digest-addon-
+      - name: Build ${{ matrix.addon }} add-on
+        if: steps.check.outputs.build_arch == 'true'
+        uses: home-assistant/builder@2025.03.0
+        with:
+          args: |
+            ${{ env.BUILD_ARGS }} \
+            --${{ matrix.arch }} \
+            --target /data/${{ matrix.addon }} \
+            --image "${{ steps.check.outputs.image }}" \
+            --docker-hub "ghcr.io/${{ github.repository_owner }}" \
+            --addon
