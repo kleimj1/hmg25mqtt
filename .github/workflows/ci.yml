@@ -1,226 +1,45 @@
-name: CI Pipeline
+name: Build Home Assistant Add-on
 
 on:
   push:
-    branches: [ main ]
-    tags: [ "*.*.*" ]
+    branches:
+      - main
+    tags:
+      - '*.*.*'
   pull_request:
-    branches: [ main ]
-
-permissions:
-  packages: write
-  contents: read
+    branches:
+      - main
 
 jobs:
-  validate:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [16.x, 18.x, 20.x]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Run tests
-        run: npm test -- --ci --reporters=default --reporters=jest-junit
-        env:
-          JEST_JUNIT_OUTPUT_DIR: ./test-results
-
-      - name: Build TypeScript
-        run: npm run build
-
-  build:
-    needs: validate
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        platform: [linux/amd64, linux/arm64, linux/arm/v7]
-        include:
-          - platform: linux/amd64
-            safe_platform: linux-amd64
-          - platform: linux/arm64
-            safe_platform: linux-arm64
-          - platform: linux/arm/v7
-            safe_platform: linux-arm-v7
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and Push Docker image
-        run: |
-          docker buildx build \
-            --platform ${{ matrix.platform }} \
-            --push \
-            --tag ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-${{ matrix.safe_platform }} \
-            --build-arg NODE_ENV=production \
-            -f ./Dockerfile \
-            .
-
-      - name: Fetch digest
-        run: |
-          DIGEST=$(docker buildx imagetools inspect ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-${{ matrix.safe_platform }} | grep '^Digest:' | awk '{print $2}')
-          echo "digest=$DIGEST" >> $GITHUB_ENV
-
-      - name: Save digest
-        run: |
-          mkdir -p /tmp/digests/${{ matrix.safe_platform }}
-          echo "${{ env.digest }}" > /tmp/digests/${{ matrix.safe_platform }}/digest.txt
-
-      - name: Upload digest
-        uses: actions/upload-artifact@v4
-        with:
-          name: digest-base-${{ matrix.safe_platform }}
-          path: /tmp/digests/${{ matrix.safe_platform }}/digest.txt
-
   build-addon:
-    needs: validate
+    name: Build and Push Add-on
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        platform: [linux/amd64, linux/arm64, linux/arm/v7]
-        include:
-          - platform: linux/amd64
-            safe_platform: linux-amd64
-          - platform: linux/arm64
-            safe_platform: linux-arm64
-          - platform: linux/arm/v7
-            safe_platform: linux-arm-v7
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
+      - name: Setup QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: Set up Docker Buildx
+      - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Add-on image
-        run: |
-          docker buildx build \
-            --platform ${{ matrix.platform }} \
-            --push \
-            --tag ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}-${{ matrix.safe_platform }} \
-            --build-arg BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2 \
-            -f ./ha_addon/Dockerfile \
-            .
-
-      - name: Fetch digest
-        run: |
-          DIGEST=$(docker buildx imagetools inspect ghcr.io/kleimj1/hmg25mqtt-addon:${{ github.ref_name }}-${{ matrix.safe_platform }} | grep '^Digest:' | awk '{print $2}')
-          echo "digest=$DIGEST" >> $GITHUB_ENV
-
-      - name: Save digest
-        run: |
-          mkdir -p /tmp/digests/${{ matrix.safe_platform }}
-          echo "${{ env.digest }}" > /tmp/digests/${{ matrix.safe_platform }}/digest.txt
-
-      - name: Upload digest
-        uses: actions/upload-artifact@v4
+      - name: Build and push Home Assistant Add-on
+        uses: home-assistant/builder@2024.11.1
         with:
-          name: digest-addon-${{ matrix.safe_platform }}
-          path: /tmp/digests/${{ matrix.safe_platform }}/digest.txt
-
-  merge:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download digests
-        uses: actions/download-artifact@v4
-        with:
-          path: /tmp/digests
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create and Push manifest list
-        run: |
-          IMAGE=ghcr.io/kleimj1/hmg25mqtt
-          REF=${GITHUB_REF_NAME}
-          DIGESTS=""
-          for PLATFORM in linux-amd64 linux-arm64 linux-arm-v7; do
-            D=$(cat /tmp/digests/$PLATFORM/digest.txt)
-            DIGESTS="$DIGESTS $IMAGE@$D"
-          done
-          docker buildx imagetools create \
-            -t $IMAGE:$REF \
-            -t $IMAGE:latest \
-            $DIGESTS
-
-  merge-addon:
-    needs: build-addon
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download digests
-        uses: actions/download-artifact@v4
-        with:
-          path: /tmp/digests
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create and Push manifest list
-        run: |
-          IMAGE=ghcr.io/kleimj1/hmg25mqtt-addon
-          REF=${GITHUB_REF_NAME}
-          DIGESTS=""
-          for PLATFORM in linux-amd64 linux-arm64 linux-arm-v7; do
-            D=$(cat /tmp/digests/$PLATFORM/digest.txt)
-            DIGESTS="$DIGESTS $IMAGE@$D"
-          done
-          docker buildx imagetools create \
-            -t $IMAGE:$REF \
-            -t $IMAGE:latest \
-            $DIGESTS
+          args: |
+            --all \
+            --target ./ha_addon \
+            --docker-hub ghcr.io/${{ github.repository_owner }} \
+            --addon
