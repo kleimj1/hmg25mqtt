@@ -2,17 +2,14 @@ name: CI Pipeline
 
 on:
   push:
-    branches:
-      - main
-    tags: 
-      - "*.*.*"
+    branches: [ main ]
+    tags: [ "*.*.*" ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
 
 permissions:
-  packages: write
   contents: read
+  packages: write
 
 jobs:
   init:
@@ -21,61 +18,71 @@ jobs:
       changed_addons: ${{ steps.changed_addons.outputs.addons }}
       changed: ${{ steps.changed_addons.outputs.changed }}
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Detect changed add-ons
+      - name: Get changed files
+        id: changed_files
+        uses: jitterbit/get-changed-files@v1
+
+      - name: Find add-on directories
+        id: addons
+        uses: home-assistant/actions/helpers/find-addons@master
+
+      - name: Get changed add-ons
         id: changed_addons
         run: |
-          git fetch origin main --depth=1
-          
-          # Find changed files compared to main
-          CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
-          echo "Changed files: $CHANGED_FILES"
-          
-          # Find addon directories by looking for config.yaml inside ha_addon/
-          ADDONS=$(find ha_addon -name "config.yaml" -printf "%h\n")
-          
-          declare -a CHANGED_ADDONS=()
-          
-          for addon in $ADDONS; do
-            for file in $CHANGED_FILES; do
-              if [[ "$file" == "$addon"* ]]; then
-                CHANGED_ADDONS+=("\"$addon\"")
-              fi
-            done
+          declare -a changed_addons
+          for addon in ${{ steps.addons.outputs.addons }}; do
+            if [[ "${{ steps.changed_files.outputs.all }}" =~ $addon ]]; then
+              changed_addons+=("\"${addon}\"")
+            fi
           done
-          
-          if [ ${#CHANGED_ADDONS[@]} -eq 0 ]; then
-            echo "No changed addons detected"
-            echo "changed=false" >> $GITHUB_ENV
-            echo "addons=[]" >> $GITHUB_ENV
-          else
-            ADDON_JSON=$(printf ",%s" "${CHANGED_ADDONS[@]}")
-            ADDON_JSON="[${ADDON_JSON:1}]"
-            echo "Detected changed addons: $ADDON_JSON"
+          changed=$(echo ${changed_addons[@]} | jq -cs .)
+          echo "addons=${changed}" >> $GITHUB_ENV
+          if [ "${#changed_addons[@]}" -gt 0 ]; then
             echo "changed=true" >> $GITHUB_ENV
-            echo "addons=$ADDON_JSON" >> $GITHUB_ENV
+          else
+            echo "changed=false" >> $GITHUB_ENV
           fi
-          
-          echo "changed=${{ env.changed }}" >> $GITHUB_OUTPUT
-          echo "addons=${{ env.addons }}" >> $GITHUB_OUTPUT
 
   build:
     needs: init
-    if: needs.init.outputs.changed == 'true'
+    if: always()   # <-- Damit wird build immer ausgeführt!
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        addon: ${{ fromJson(needs.init.outputs.changed_addons) }}
-        arch: ["amd64", "arm64", "armv7"]
+        platform: [linux/amd64, linux/arm64, linux/arm/v7]
+        safe:
+          - linux-amd64
+          - linux-arm64
+          - linux-arm-v7
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build and Push
-        run: |
-          echo "Would now build addon ${{ matrix.addon }} for ${{ matrix.arch }}"
-          # hier kannst du deinen echten Build-Job einhängen (z.B. home-assistant/builder)
+      - name: Build Image
+        uses: ./.github/workflows/build-image.yml
+        with:
+          registry: ghcr.io
+          context: .
+          dockerfile: ./Dockerfile
+          platform: ${{ matrix.platform }}
+          safe-platform: ${{ matrix.safe }}
+          image-suffix: ""
+          build-args: |
+            NODE_ENV=production
+          tags: |
+            ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-${{ matrix.safe }}
+          digest-prefix: digest-base-
 
-  # Optional: Manifest-merge kannst du wie bisher anschließen
+  merge:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge Manifests
+        uses: ./.github/workflows/merge-manifests.yml
+        with:
+          registry: ghcr.io
+          image-suffix: ""
+          digest-prefix: digest-base-
