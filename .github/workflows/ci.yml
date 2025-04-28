@@ -51,11 +51,12 @@ jobs:
 
           if [[ -n ${changed} ]]; then
             echo "Changed add-ons: $changed";
-            echo "changed=true" >> $GITHUB_ENV
-            echo "addons=[$changed]" >> $GITHUB_ENV
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "addons=[$changed]" >> $GITHUB_OUTPUT
           else
             echo "No add-on had any monitored files changed (${{ env.MONITORED_FILES }})";
           fi
+
   build:
     needs: init
     runs-on: ubuntu-latest
@@ -84,16 +85,17 @@ jobs:
         run: |
           if [[ "${{ steps.info.outputs.image }}" == "null" ]]; then
             echo "Image property is not defined, skipping build"
-            echo "build_arch=false" >> $GITHUB_ENV
+            echo "build_arch=false" >> $GITHUB_OUTPUT
           elif [[ "${{ steps.info.outputs.architectures }}" =~ ${{ matrix.arch }} ]]; then
-            echo "build_arch=true" >> $GITHUB_ENV
-            echo "image=$(echo ${{ steps.info.outputs.image }} | cut -d'/' -f3)" >> $GITHUB_ENV
+            echo "build_arch=true" >> $GITHUB_OUTPUT
+            image=$(echo ${{ steps.info.outputs.image }} | cut -d'/' -f3)
+            echo "image=$image" >> $GITHUB_OUTPUT
             if [[ -z "${{ github.head_ref }}" ]] && [[ "${{ github.event_name }}" == "push" ]]; then
                 echo "BUILD_ARGS=" >> $GITHUB_ENV
             fi
           else
-            echo "${{ matrix.arch }} is not a valid arch for ${{ matrix.addon }}, skipping build";
-            echo "build_arch=false" >> $GITHUB_ENV
+            echo "${{ matrix.arch }} is not a valid arch for ${{ matrix.addon }}, skipping build"
+            echo "build_arch=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Login to GitHub Container Registry
@@ -105,13 +107,13 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build ${{ matrix.addon }} add-on
-        if: env.build_arch == 'true'
+        if: steps.check.outputs.build_arch == 'true'
         uses: home-assistant/builder@2025.03.0
         with:
           args: |
             ${{ env.BUILD_ARGS }} \
             --${{ matrix.arch }} \
             --target /data/${{ matrix.addon }} \
-            --image "${{ env.image }}" \
+            --image "${{ steps.check.outputs.image }}" \
             --docker-hub "ghcr.io/${{ github.repository_owner }}" \
             --addon
