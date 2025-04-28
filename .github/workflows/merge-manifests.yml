@@ -20,48 +20,49 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download digest linux-amd64
+      - name: Download digest artifacts
         uses: actions/download-artifact@v4
         with:
-          name: ${{ inputs.digest-prefix }}linux-amd64
-          path: /tmp/digests/linux-amd64
-
-      - name: Download digest linux-arm64
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ inputs.digest-prefix }}linux-arm64
-          path: /tmp/digests/linux-arm64
-
-      - name: Download digest linux-arm-v7
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ inputs.digest-prefix }}linux-arm-v7
-          path: /tmp/digests/linux-arm-v7
+          path: /tmp/digests
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to registry
+      - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ inputs.registry }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Prepare digests
+        run: |
+          mkdir -p /tmp/digests/ready
+
+          for PLATFORM in linux-amd64 linux-arm64 linux-arm-v7; do
+            FILE=$(find /tmp/digests -name "${{ inputs.digest-prefix }}${PLATFORM}/digest.txt" -print -quit)
+            if [ -f "$FILE" ]; then
+              cp "$FILE" "/tmp/digests/ready/${PLATFORM}.txt"
+            else
+              echo "Missing digest for $PLATFORM!"
+              exit 1
+            fi
+          done
+
       - name: Create and push manifest list
         run: |
           IMAGE="${{ inputs.registry }}/${{ github.repository }}${{ inputs.image-suffix }}"
           REF="${GITHUB_REF_NAME}"
 
-          echo "Building manifest for $IMAGE:$REF"
+          echo "🔨 Building manifest list for $IMAGE:$REF"
 
           docker buildx imagetools create \
             -t "$IMAGE:$REF" \
             -t "$IMAGE:latest" \
-            "$IMAGE@$(cat /tmp/digests/linux-amd64/digest.txt)" \
-            "$IMAGE@$(cat /tmp/digests/linux-arm64/digest.txt)" \
-            "$IMAGE@$(cat /tmp/digests/linux-arm-v7/digest.txt)"
+            "$IMAGE@$(cat /tmp/digests/ready/linux-amd64.txt)" \
+            "$IMAGE@$(cat /tmp/digests/ready/linux-arm64.txt)" \
+            "$IMAGE@$(cat /tmp/digests/ready/linux-arm-v7.txt)"
 
-      - name: Inspect manifest list
+      - name: Inspect manifest
         run: |
           docker buildx imagetools inspect "${{ inputs.registry }}/${{ github.repository }}${{ inputs.image-suffix }}:latest"
