@@ -8,8 +8,8 @@ on:
     branches: [ main ]
 
 permissions:
-  packages: write
   contents: read
+  packages: write
 
 jobs:
   init:
@@ -19,15 +19,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set outputs
-        id: setvars
+      - id: setvars
         run: |
-          echo "changed=true" >> $GITHUB_ENV
           echo "changed=true" >> $GITHUB_OUTPUT
 
   build:
     needs: init
     if: needs.init.outputs.changed == 'true'
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
@@ -37,22 +36,27 @@ jobs:
             safe-platform: linux-arm64
           - platform: linux/arm/v7
             safe-platform: linux-arm-v7
-    uses: ./.github/workflows/build-image.yml
-    with:
-      registry: ghcr.io
-      context: .
-      dockerfile: ./Dockerfile
-      platform: ${{ matrix.platform }}
-      safe-platform: ${{ matrix.safe-platform }}
-      image-suffix: ""
-      build-args: NODE_ENV=production
-      tags: ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-${{ matrix.safe-platform }}
-      digest-prefix: digest-base-
+    steps:
+      - name: Call Build Image Workflow
+        uses: ./.github/workflows/build-image.yml
+        with:
+          registry: ghcr.io
+          context: .
+          dockerfile: ./Dockerfile
+          platform: ${{ matrix.platform }}
+          safe-platform: ${{ matrix.safe-platform }}
+          image-suffix: ""
+          build-args: NODE_ENV=production
+          tags: ghcr.io/kleimj1/hmg25mqtt:${{ github.ref_name }}-${{ matrix.safe-platform }}
+          digest-prefix: digest-base-
 
   merge:
     needs: build
-    uses: ./.github/workflows/merge-manifests.yml
-    with:
-      registry: ghcr.io
-      image-suffix: ""
-      digest-prefix: digest-base-
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Merge Manifests Workflow
+        uses: ./.github/workflows/merge-manifests.yml
+        with:
+          registry: ghcr.io
+          image-suffix: ""
+          digest-prefix: digest-base-
