@@ -42,14 +42,14 @@ jobs:
 
           echo "🔨 Building manifest list for $IMAGE:$REF"
 
-          # alle drei Plattform-Digests zusammenführen
+          # Alle drei Plattform-Digests zusammenführen
           DIGESTS=""
           for PLATFORM in linux-amd64 linux-arm64 linux-arm-v7; do
             D=$(cat /tmp/digests/${{ inputs.digest-prefix }}${PLATFORM}/digest.txt)
             DIGESTS="$DIGESTS $IMAGE@$D"
           done
 
-          # manifest list erzeugen und pushen
+          # Manifest-Liste erzeugen und pushen
           docker buildx imagetools create \
             -t "$IMAGE:$REF" \
             -t "$IMAGE:latest" \
@@ -57,5 +57,5 @@ jobs:
 
       - name: Inspect Manifest List
         run: |
-          # nur die drei Plattform-Einträge anzeigen, ohne die kompletten Raw-Blobs
+          # Nur die drei Plattform-Einträge anzeigen, ohne die kompletten Raw-Blobs
           docker manifest inspect "${{ inputs.registry }}/${{ github.repository }}${{ inputs.image-suffix }}:latest"
