@@ -5,9 +5,7 @@ description: "Connect Hame energy storage devices to Home Assistant via MQTT"
 url: "https://github.com/kleimj1/hmg25mqtt"
 image: "ghcr.io/kleimj1/hmg25mqtt-addon"
 arch:
-  - armv7
   - aarch64
-  - amd64
 init: false
 startup: application
 boot: auto
