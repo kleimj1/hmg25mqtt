@@ -1,4 +1,4 @@
-name: Build Home Assistant Add-on (Raspberry Pi 4)
+name: Build Home Assistant Add-on
 
 on:
   push:
@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build-addon:
-    name: Build add-on for aarch64 (Raspberry Pi 4)
+    name: Build aarch64 Add-on
     runs-on: ubuntu-latest
 
     steps:
@@ -33,7 +33,7 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push add-on for aarch64
+      - name: Build and push add-on
         run: |
           docker run --rm --privileged \
             -v /var/run/docker.sock:/var/run/docker.sock \
@@ -43,4 +43,3 @@ jobs:
               --target /data/ha_addon \
               --docker-hub "ghcr.io/${{ github.repository_owner }}" \
               --addon
-
