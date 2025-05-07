@@ -1,4 +1,4 @@
-name: Build Home Assistant Add-on for Raspberry Pi
+name: Build Home Assistant Add-on
 
 on:
   push:
@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build-addon:
-    name: Build and Push Add-on (aarch64)
+    name: Build aarch64
     runs-on: ubuntu-latest
 
     steps:
