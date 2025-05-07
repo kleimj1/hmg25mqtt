@@ -1,4 +1,4 @@
-name: Build Home Assistant Add-on (armv7 only)
+name: Build Home Assistant Add-on (Raspberry Pi 4)
 
 on:
   push:
@@ -10,9 +10,13 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-addon:
-    name: Build add-on for armv7
+    name: Build add-on for aarch64 (Raspberry Pi 4)
     runs-on: ubuntu-latest
 
     steps:
@@ -29,13 +33,13 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push add-on for armv7
+      - name: Build and push add-on for aarch64
         run: |
           docker run --rm --privileged \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "${GITHUB_WORKSPACE}:/data" \
-            ghcr.io/home-assistant/builder:2023.12.1 \
-              --armv7 \
+            homeassistant/amd64-builder:latest \
+              --aarch64 \
               --target /data/ha_addon \
               --docker-hub "ghcr.io/${{ github.repository_owner }}" \
               --addon
