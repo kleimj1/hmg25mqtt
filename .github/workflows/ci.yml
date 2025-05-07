@@ -1,4 +1,4 @@
-name: Build Home Assistant Add-on
+name: Build Home Assistant Add-on for Raspberry Pi
 
 on:
   push:
@@ -16,15 +16,8 @@ permissions:
 
 jobs:
   build-addon:
-    name: Build ${{ matrix.architecture }}
+    name: Build and Push Add-on (aarch64)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        architecture:
-          - amd64
-          - armv7
-          - aarch64
 
     steps:
       - name: Checkout repository
@@ -41,12 +34,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push add-on
-        run: |
-          docker run --rm --privileged \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v "${GITHUB_WORKSPACE}:/data" \
-            ghcr.io/home-assistant/builder:latest \
-              --${{ matrix.architecture }} \
-              --target ./ha_addon \
-              --docker-hub "ghcr.io/${{ github.repository_owner }}" \
-              --addon
+        uses: home-assistant/builder@master
+        with:
+          args: |
+            --aarch64 \
+            --target ./ha_addon \
+            --docker-hub ghcr.io/${{ github.repository_owner }} \
+            --addon
