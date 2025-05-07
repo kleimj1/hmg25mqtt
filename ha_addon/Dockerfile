@@ -24,8 +24,8 @@ WORKDIR /app
 COPY --from=builder /build/node_modules ./node_modules
 COPY --from=builder /build/dist        ./dist
 
-# <-- here: point at run.sh in ha_addon folder rather than root
-COPY ha_addon/run.sh /run.sh
+# Kopiere run.sh aus dem aktuellen Verzeichnis
+COPY run.sh /run.sh
 RUN chmod +x /run.sh
 
 CMD [ "/run.sh" ]
