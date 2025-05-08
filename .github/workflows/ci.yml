@@ -1,4 +1,4 @@
-name: Build Home Assistant Add-on
+name: Build and Push Home Assistant Add-on
 
 on:
   push:
@@ -12,11 +12,11 @@ on:
 
 permissions:
   contents: read
-  packages: write
+  packages: write:contentReference[oaicite:9]{index=9}
 
 jobs:
   build-addon:
-    name: Build aarch64 Add-on
+    name: Build and Push aarch64 Add-on
     runs-on: ubuntu-latest
 
     steps:
@@ -37,7 +37,7 @@ jobs:
         run: |
           docker run --rm --privileged \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            -v "${GITHUB_WORKSPACE}:/data" \
+            -v "${{ github.workspace }}:/data" \
             homeassistant/amd64-builder:latest \
               --aarch64 \
               --target /data/ha_addon \
