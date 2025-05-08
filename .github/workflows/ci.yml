@@ -30,7 +30,7 @@ jobs:
         run: |
           echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ github.repository_owner }}" --password-stdin
 
-      - name: Build and push add-on (with latest tag)
+      - name: Build and push add-on (aarch64 + latest)
         run: |
           docker run --rm --privileged \
             -v /var/run/docker.sock:/var/run/docker.sock \
@@ -38,8 +38,6 @@ jobs:
             homeassistant/amd64-builder:latest \
               --aarch64 \
               --target /data/ha_addon \
-              --docker-hub "ghcr.io/${{ github.repository_owner }}" \
-              --image "hmg25mqtt-addon" \
-              --tag-version "${GITHUB_REF_NAME}" \
-              --tag-latest \
+              --image "ghcr.io/${{ github.repository_owner }}/hmg25mqtt-addon" \
+              --tag "latest" \
               --addon
