@@ -40,6 +40,7 @@ jobs:
             -v "${{ github.workspace }}:/data" \
             homeassistant/amd64-builder:latest \
               --aarch64 \
-              --target /data/ha_addon \
+              --target /data \
               --image "ghcr.io/${{ github.repository_owner }}/hmg25mqtt-addon" \
-              --addon
+              --addon \
+              --version "${{ github.ref_name }}"
