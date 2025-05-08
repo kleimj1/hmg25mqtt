@@ -31,7 +31,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}  # Geändert zu GITHUB_TOKEN
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push add-on
         run: |
@@ -41,7 +41,7 @@ jobs:
             homeassistant/amd64-builder:latest \
               --aarch64 \
               --target /data/ha_addon \
-              --image "ghcr.io/${{ github.repository_owner }}/hmg25mqtt-addon" \
+              --image "hmg25mqtt-addon" \  # Nur der Addon-Name ohne Repository-Pfad
               --addon \
               --version "${{ github.ref_name }}" \
               --no-cache
