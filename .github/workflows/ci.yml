@@ -12,7 +12,7 @@ on:
 
 permissions:
   contents: read
-  packages: write:contentReference[oaicite:9]{index=9}
+  packages: write
 
 jobs:
   build-addon:
