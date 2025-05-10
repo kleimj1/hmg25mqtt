@@ -27,16 +27,18 @@ jobs:
 
       - name: Install dependencies and build TypeScript
         run: |
-          npm ci
+          npm ci --omit=dev
           npm run build
           mkdir -p ha_addon/dist
           cp -r dist/* ha_addon/dist/
+          cp -r node_modules ha_addon/
 
       - name: Verify required files
         run: |
           ls -la ha_addon
           test -f ha_addon/run.sh || (echo "❌ run.sh fehlt!" && exit 1)
           test -f ha_addon/dist/index.js || (echo "❌ dist/index.js fehlt!" && exit 1)
+          test -d ha_addon/node_modules || (echo "❌ node_modules fehlt!" && exit 1)
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
