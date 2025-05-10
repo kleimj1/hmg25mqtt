@@ -1,4 +1,9 @@
 #!/usr/bin/with-contenv bashio
+echo "[DEBUG] Contents of /app:"
+ls -l /app
+
+echo "[DEBUG] Contents of /app/dist:"
+ls -l /app/dist
 
 # Enable error handling
 set -e
