@@ -6,13 +6,19 @@ url: "https://github.com/kleimj1/hmg25mqtt"
 image: "ghcr.io/kleimj1/hmg25mqtt-addon"
 arch:
   - aarch64
+
 startup: application
 boot: auto
 init: false
 hassio_api: true
 hassio_role: default
+
 services:
   - mqtt:need
+
+build_from:
+  aarch64: "ghcr.io/home-assistant/aarch64-base:2023.12.0"
+
 options:
   pollingInterval: 60
   responseTimeout: 30
@@ -22,6 +28,7 @@ options:
   devices:
     - deviceType: "HMA-1"
       deviceId: "device-mac-address"
+
 schema:
   mqtt_uri: str?
   pollingInterval: int?
