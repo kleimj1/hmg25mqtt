@@ -1,15 +1,20 @@
 ARG BUILD_FROM
-FROM ghcr.io/home-assistant/aarch64-base:latest
+FROM $BUILD_FROM
 
+ENV LANG C.UTF-8
 
-
-ENV LANG=C.UTF-8
-
+# Install Node.js for runtime
 RUN apk add --no-cache nodejs
 
+# Set working directory
 WORKDIR /app
 
-WORKDIR /app
-COPY run.sh ./run.sh
-RUN chmod +x run.sh
-CMD [ "./run.sh" ]
+# Copy compiled TypeScript output
+COPY dist ./dist
+
+# Copy startup script
+COPY run.sh /run.sh
+RUN chmod +x /run.sh
+
+# Entry point for the add-on
+CMD [ "/run.sh" ]
