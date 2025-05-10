@@ -32,6 +32,12 @@ jobs:
           mkdir -p ha_addon/dist
           cp -r dist/* ha_addon/dist/
 
+      - name: Verify required files
+        run: |
+          ls -la ha_addon
+          test -f ha_addon/run.sh || (echo "❌ run.sh fehlt!" && exit 1)
+          test -f ha_addon/dist/index.js || (echo "❌ dist/index.js fehlt!" && exit 1)
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
