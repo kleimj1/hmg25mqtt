@@ -3,19 +3,21 @@ FROM $BUILD_FROM
 
 ENV LANG C.UTF-8
 
-# Install Node.js + npm
-RUN apk add --no-cache nodejs npm
+# Installiere Node.js zur Laufzeit
+RUN apk add --no-cache nodejs
 
-# Arbeitsverzeichnis
+# Setze Arbeitsverzeichnis
 WORKDIR /app
 
-# Kopiere package.json und installiere nur runtime-deps
-COPY ../package.json ../package-lock.json ./
-RUN npm install --omit=dev
+# Kopiere vorbereitete node_modules aus CI (siehe Workflow!)
+COPY node_modules ./node_modules
 
-# Kopiere kompilierten Code
+# Kopiere den kompilierten Code
 COPY dist ./dist
+
+# Kopiere das Startskript
 COPY run.sh /run.sh
 RUN chmod +x /run.sh
 
+# Starte das Add-on
 CMD ["/run.sh"]
