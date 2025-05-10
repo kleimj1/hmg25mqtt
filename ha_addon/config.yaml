@@ -17,7 +17,7 @@ services:
   - mqtt:need
 
 build_from:
-  aarch64: "ghcr.io/home-assistant/aarch64-base:2023.12.0"
+  aarch64: "ghcr.io/home-assistant/aarch64-base:latest"
 
 options:
   pollingInterval: 60
