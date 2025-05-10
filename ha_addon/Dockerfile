@@ -9,8 +9,7 @@ RUN apk add --no-cache nodejs
 
 WORKDIR /app
 
-COPY dist ./dist
-COPY run.sh ./
-RUN chmod +x /run.sh
-
-CMD [ "/run.sh" ]
+WORKDIR /app
+COPY run.sh ./run.sh
+RUN chmod +x run.sh
+CMD [ "./run.sh" ]
