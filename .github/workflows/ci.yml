@@ -31,7 +31,6 @@ jobs:
           npm run build
           mkdir -p ha_addon/dist
           cp -r dist/* ha_addon/dist/
-          cp run.sh ha_addon/
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
