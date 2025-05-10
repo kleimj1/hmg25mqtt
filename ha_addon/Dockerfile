@@ -3,18 +3,19 @@ FROM $BUILD_FROM
 
 ENV LANG C.UTF-8
 
-# Install Node.js for runtime
-RUN apk add --no-cache nodejs
+# Install Node.js + npm
+RUN apk add --no-cache nodejs npm
 
-# Set working directory
+# Arbeitsverzeichnis
 WORKDIR /app
 
-# Copy compiled TypeScript output
-COPY dist ./dist
+# Kopiere package.json und installiere nur runtime-deps
+COPY ../package.json ../package-lock.json ./
+RUN npm install --omit=dev
 
-# Copy startup script
+# Kopiere kompilierten Code
+COPY dist ./dist
 COPY run.sh /run.sh
 RUN chmod +x /run.sh
 
-# Entry point for the add-on
-CMD [ "/run.sh" ]
+CMD ["/run.sh"]
